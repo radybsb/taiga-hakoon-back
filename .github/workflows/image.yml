@@ -1,0 +1,65 @@
+name: Build, test and publish image
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: image-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    services:
+      postgres:
+        image: postgres:12.3
+        env:
+          POSTGRES_DB: taiga
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 12
+      rabbitmq:
+        image: rabbitmq:3.8-management-alpine
+        ports: ['5672:5672']
+        options: --health-cmd "rabbitmq-diagnostics -q ping" --health-interval 10s --health-timeout 10s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev gettext
+          python -m pip install -r requirements.txt -r requirements-contribs.txt -r requirements-devel.txt
+      - name: Test customized backend features against a disposable database
+        run: |
+          python -m pytest -q tests/unit/test_wiki_outline.py tests/integration/test_wiki_outline.py tests/unit/test_multiple_assignees.py tests/unit/test_backgrounds.py tests/unit/test_attachments_services.py
+      - name: Build runtime image
+        run: docker build --build-arg VCS_REF="$GITHUB_SHA" -f docker/Dockerfile -t hakoon-ci:"$GITHUB_SHA" .
+      - name: Verify runtime source compiles
+        run: docker run --rm --network none --entrypoint python hakoon-ci:"$GITHUB_SHA" -m compileall -q taiga settings
+      - name: Authenticate to GHCR
+        if: github.event_name != 'pull_request'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Publish tested image
+        if: github.event_name != 'pull_request'
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          release_tag="sha-$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          docker tag hakoon-ci:"$GITHUB_SHA" "$image:$release_tag"
+          docker push "$image:$release_tag"
+          docker tag hakoon-ci:"$GITHUB_SHA" "$image:$GITHUB_REF_NAME"
+          docker push "$image:$GITHUB_REF_NAME"
+          printf '### Image ready\n`%s:%s`\n' "$image" "$release_tag" >> "$GITHUB_STEP_SUMMARY"
