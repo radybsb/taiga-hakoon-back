@@ -14,6 +14,9 @@ import os
 #########################################
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
+HAKOON_ENVIRONMENT = os.getenv('HAKOON_ENVIRONMENT', '')
+SEED_TEST_USERS_ENABLED = os.getenv('SEED_TEST_USERS_ENABLED', 'False').lower() == 'true'
+TEST_USERS_PASSWORD = os.getenv('TEST_USERS_PASSWORD', '')
 
 DATABASES = {
     'default': {

@@ -43,7 +43,7 @@ jobs:
           python -m pip install -r requirements.txt -r requirements-contribs.txt -r requirements-devel.txt
       - name: Test customized backend features against a disposable database
         run: |
-          python -m pytest -q tests/unit/test_wiki_outline.py tests/integration/test_wiki_outline.py tests/unit/test_multiple_assignees.py tests/unit/test_backgrounds.py tests/unit/test_attachments_services.py
+          python -m pytest -q tests/unit/test_wiki_outline.py tests/integration/test_wiki_outline.py tests/unit/test_multiple_assignees.py tests/unit/test_backgrounds.py tests/unit/test_attachments_services.py tests/unit/test_seed_test_users.py
       - name: Build runtime image
         run: docker build --build-arg VCS_REF="$GITHUB_SHA" -f docker/Dockerfile -t hakoon-ci:"$GITHUB_SHA" .
       - name: Verify runtime source compiles
