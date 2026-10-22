@@ -12,12 +12,19 @@ pytestmark = pytest.mark.django_db
 PASSWORD = 'Test-only-password-123!'
 
 
+@pytest.fixture
+def existing_users():
+    # The shared test fixtures already populate users in the database.
+    return list(get_user_model().objects.order_by('pk').values())
+
+
 @override_settings(HAKOON_ENVIRONMENT='homolog', SEED_TEST_USERS_ENABLED=True, TEST_USERS_PASSWORD=PASSWORD)
-def test_seed_creates_three_regular_users_and_preserves_existing_passwords():
+def test_seed_creates_three_regular_users_and_preserves_existing_passwords(existing_users):
     output = StringIO()
     call_command('seed_test_users', stdout=output)
     User = get_user_model()
-    assert User.objects.count() == 3
+    assert User.objects.count() == len(existing_users) + len(TEST_USERS)
+    assert list(User.objects.filter(pk__in=[row['id'] for row in existing_users]).order_by('pk').values()) == existing_users
     for username, full_name, email in TEST_USERS:
         user = User.objects.get(username=username)
         assert user.full_name == full_name and user.email == email
@@ -37,23 +44,23 @@ def test_seed_creates_three_regular_users_and_preserves_existing_passwords():
 
 @pytest.mark.parametrize('environment', ['', 'production', 'dev'])
 @override_settings(SEED_TEST_USERS_ENABLED=True, TEST_USERS_PASSWORD=PASSWORD)
-def test_seed_refuses_other_environments(environment):
+def test_seed_refuses_other_environments(environment, existing_users):
     with override_settings(HAKOON_ENVIRONMENT=environment), pytest.raises(CommandError):
         call_command('seed_test_users')
-    assert get_user_model().objects.count() == 0
+    assert list(get_user_model().objects.order_by('pk').values()) == existing_users
 
 
 @override_settings(HAKOON_ENVIRONMENT='homolog', SEED_TEST_USERS_ENABLED=False)
-def test_seed_can_be_disabled():
+def test_seed_can_be_disabled(existing_users):
     call_command('seed_test_users', stdout=StringIO())
-    assert get_user_model().objects.count() == 0
+    assert list(get_user_model().objects.order_by('pk').values()) == existing_users
 
 
 @override_settings(HAKOON_ENVIRONMENT='homolog', SEED_TEST_USERS_ENABLED=True, TEST_USERS_PASSWORD='')
-def test_seed_requires_an_initial_password_without_partial_creation():
+def test_seed_requires_an_initial_password_without_partial_creation(existing_users):
     with pytest.raises(CommandError, match='TEST_USERS_PASSWORD'):
         call_command('seed_test_users')
-    assert get_user_model().objects.count() == 0
+    assert list(get_user_model().objects.order_by('pk').values()) == existing_users
 
 
 @override_settings(HAKOON_ENVIRONMENT='homolog', SEED_TEST_USERS_ENABLED=True, TEST_USERS_PASSWORD=PASSWORD)
