@@ -6,9 +6,9 @@ from django.db import transaction
 
 
 TEST_USERS = (
-    ('test.alex', 'Alex Morgan', 'alex.morgan@homolog.invalid'),
-    ('test.jamie', 'Jamie Chen', 'jamie.chen@homolog.invalid'),
-    ('test.sam', 'Sam Taylor', 'sam.taylor@homolog.invalid'),
+    ('felipe', 'Felipe Elécio', 'felipe@homolog.invalid'),
+    ('gabi', 'Gabi Rose', 'gabi@homolog.invalid'),
+    ('lucas', 'Lucas Krespi', 'lucas@homolog.invalid'),
 )
 
 
