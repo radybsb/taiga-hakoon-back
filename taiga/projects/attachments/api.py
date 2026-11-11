@@ -118,6 +118,12 @@ class UserStoryAttachmentViewSet(BaseAttachmentViewSet):
     filter_backends = (filters.CanViewUserStoryAttachmentFilterBackend,)
     content_type = "userstories.userstory"
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.action != "list":
+            queryset = queryset.filter(content_type=self.get_content_type())
+        return queryset
+
     def filter_queryset(self, queryset):
         direct = super().filter_queryset(queryset)
         # Inheritance is list-only. Detail/PATCH/DELETE routes retain their types.

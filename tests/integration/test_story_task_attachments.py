@@ -8,7 +8,7 @@ pytestmark = pytest.mark.django_db
 
 
 def setup_story():
-    story = f.create_user_story()
+    story = f.create_userstory()
     f.MembershipFactory(project=story.project, user=story.owner, is_admin=True)
     task = f.create_task(project=story.project, user_story=story)
     other = f.create_task(project=story.project)
@@ -29,8 +29,8 @@ def test_story_inherits_task_files_without_copying_or_changing_ownership(client)
         {'project': story.project_id, 'object_id': story.id, 'include_task_attachments': '1'},
         HTTP_X_DISABLE_PAGINATION='1')
     assert response.status_code == 200
-    assert {item['id'] for item in response.data} == {direct.id, inherited.id}
-    assert next(item for item in response.data if item['id'] == inherited.id)['source_task_id'] == task.id
+    assert {item['id'] for item in response.json()} == {direct.id, inherited.id}
+    assert next(item for item in response.json() if item['id'] == inherited.id)['source_task_id'] == task.id
     assert Attachment.objects.count() == before
     inherited.refresh_from_db()
     assert inherited.content_object == task
@@ -41,7 +41,7 @@ def test_story_inherits_task_files_without_copying_or_changing_ownership(client)
     response = client.get(reverse('userstory-attachments-list'),
         {'project': story.project_id, 'object_id': story.id, 'include_task_attachments': '1'},
         HTTP_X_DISABLE_PAGINATION='1')
-    assert {item['id'] for item in response.data} == {direct.id}
+    assert {item['id'] for item in response.json()} == {direct.id}
 
 
 def test_card_summaries_include_child_files_and_follow_deprecation(client):
@@ -52,7 +52,7 @@ def test_card_summaries_include_child_files_and_follow_deprecation(client):
             {'project': story.project_id, 'include_attachments': '1', 'order_by': '-kanban_order'},
             HTTP_X_DISABLE_PAGINATION='1')
         assert response.status_code == 200
-        return next(item for item in response.data if item['id'] == story.id)
+        return next(item for item in response.json() if item['id'] == story.id)
     data = load()
     assert {item['id'] for item in data['attachments']} == {direct.id, inherited.id}
     assert data['total_attachments'] == 2
@@ -75,9 +75,9 @@ def test_child_files_require_task_view_permission(client):
     response = client.get(reverse('userstory-attachments-list'),
         {'project': project.id, 'object_id': story.id, 'include_task_attachments': '1'},
         HTTP_X_DISABLE_PAGINATION='1')
-    assert {item['id'] for item in response.data} == {direct.id}
+    assert {item['id'] for item in response.json()} == {direct.id}
     response = client.get(reverse('userstories-list'),
         {'project': project.id, 'include_attachments': '1'}, HTTP_X_DISABLE_PAGINATION='1')
-    data = next(item for item in response.data if item['id'] == story.id)
+    data = next(item for item in response.json() if item['id'] == story.id)
     assert {item['id'] for item in data['attachments']} == {direct.id}
     assert data['total_attachments'] == 1
