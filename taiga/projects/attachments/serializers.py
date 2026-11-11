@@ -5,6 +5,9 @@
 #
 # Copyright (c) 2021-present Kaleidos INC
 
+from django.apps import apps
+from django.contrib.contenttypes.models import ContentType
+
 from taiga.base.api import serializers
 from taiga.base.fields import MethodField, Field, FileField
 
@@ -25,11 +28,16 @@ class AttachmentSerializer(serializers.LightSerializer):
     created_date = Field()
     modified_date = Field()
     object_id = Field()
+    source_task_id = MethodField()
     order = Field()
     sha1 = Field()
     url = MethodField("get_url")
     thumbnail_card_url = MethodField("get_thumbnail_card_url")
     preview_url = MethodField("get_preview_url")
+
+    def get_source_task_id(self, obj):
+        task_type = ContentType.objects.get_for_model(apps.get_model("tasks", "Task"))
+        return obj.object_id if obj.content_type_id == task_type.id else None
 
     def get_url(self, obj):
         frag = services.generate_refresh_fragment(obj)

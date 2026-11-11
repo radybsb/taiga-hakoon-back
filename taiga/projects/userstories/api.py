@@ -136,7 +136,7 @@ class UserStoryViewSet(AssignedUsersSignalMixin, OCCResourceMixin,
         qs = attach_extra_info(qs, user=self.request.user,
                                include_attachments=include_attachments,
                                include_tasks=include_tasks,
-                               epic_id=epic_id)
+                               epic_id=epic_id, request=self.request)
         return qs
 
     # Updating some attributes of the userstory can affect the ordering in the backlog, kanban or taskboard

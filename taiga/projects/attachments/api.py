@@ -7,6 +7,9 @@
 
 import os.path as path
 import mimetypes
+from types import SimpleNamespace
+from django.apps import apps
+from taiga.permissions.services import user_has_perm
 mimetypes.init()
 
 from django.utils.translation import gettext as _
@@ -114,6 +117,30 @@ class UserStoryAttachmentViewSet(BaseAttachmentViewSet):
     permission_classes = (permissions.UserStoryAttachmentPermission,)
     filter_backends = (filters.CanViewUserStoryAttachmentFilterBackend,)
     content_type = "userstories.userstory"
+
+    def filter_queryset(self, queryset):
+        direct = super().filter_queryset(queryset)
+        # Inheritance is list-only. Detail/PATCH/DELETE routes retain their types.
+        if self.action != "list" or self.request.QUERY_PARAMS.get("include_task_attachments") != "1":
+            return direct
+        story_id = self.request.QUERY_PARAMS.get("object_id")
+        if not story_id or not str(story_id).isdigit():
+            return direct
+        story = apps.get_model("userstories", "UserStory").objects.filter(pk=story_id).first()
+        if story is None or not user_has_perm(self.request.user, "view_us", story.project):
+            return direct
+        project_id = self.request.QUERY_PARAMS.get("project")
+        if project_id and str(story.project_id) != str(project_id):
+            return direct
+        task_model = apps.get_model("tasks", "Task")
+        task_type = ContentType.objects.get_for_model(task_model)
+        children = models.Attachment.objects.filter(
+            project_id=story.project_id, content_type=task_type,
+            object_id__in=task_model.objects.filter(user_story_id=story.id).values("id"))
+        permission_view = SimpleNamespace(filter_fields=(), order_by_fields=(), get_content_type=lambda: task_type)
+        children = filters.CanViewTaskAttachmentFilterBackend().filter_queryset(
+            self.request, children, permission_view)
+        return (direct | children).distinct().order_by("order", "created_date", "id")
 
 
 class IssueAttachmentViewSet(BaseAttachmentViewSet):

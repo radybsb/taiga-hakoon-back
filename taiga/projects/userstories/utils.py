@@ -144,13 +144,13 @@ def attach_epic_order(queryset, epic_id, as_field="epic_order"):
     return queryset
 
 
-def attach_extra_info(queryset, user=None, include_attachments=False, include_tasks=False, epic_id=None):
+def attach_extra_info(queryset, user=None, include_attachments=False, include_tasks=False, epic_id=None, request=None):
     queryset = attach_total_points(queryset)
     queryset = attach_role_points(queryset)
     queryset = attach_epics(queryset)
 
     if include_attachments:
-        queryset = attach_basic_attachments(queryset)
+        queryset = attach_basic_attachments(queryset, request=request)
         queryset = queryset.extra(select={"include_attachments": "True"})
 
     if include_tasks:
@@ -161,7 +161,7 @@ def attach_extra_info(queryset, user=None, include_attachments=False, include_ta
         queryset = attach_epic_order(queryset, epic_id)
         queryset = queryset.extra(select={"include_epic_order": "True"})
 
-    queryset = attach_total_attachments(queryset)
+    queryset = attach_total_attachments(queryset, request=request)
     queryset = attach_total_voters_to_queryset(queryset)
     queryset = attach_watchers_to_queryset(queryset)
     queryset = attach_total_watchers_to_queryset(queryset)
