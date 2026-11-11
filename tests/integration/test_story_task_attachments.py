@@ -9,6 +9,8 @@ pytestmark = pytest.mark.django_db
 
 def setup_story():
     story = f.create_userstory()
+    story.status = f.UserStoryStatusFactory(project=story.project)
+    story.save()
     f.MembershipFactory(project=story.project, user=story.owner, is_admin=True)
     task = f.create_task(project=story.project, user_story=story)
     other = f.create_task(project=story.project)
@@ -36,6 +38,10 @@ def test_story_inherits_task_files_without_copying_or_changing_ownership(client)
     assert inherited.content_object == task
     # Typed mutation/retrieve routes cannot treat the task file as a story file.
     assert client.get(reverse('userstory-attachments-detail', args=[inherited.id])).status_code == 404
+    assert client.json.patch(reverse('userstory-attachments-detail', args=[inherited.id]),
+        {'description': 'Must remain task-owned'}).status_code in (403, 404)
+    assert client.delete(reverse('userstory-attachments-detail', args=[inherited.id])).status_code in (403, 404)
+    assert Attachment.objects.filter(pk=inherited.id).exists()
     task.user_story = None
     task.save()
     response = client.get(reverse('userstory-attachments-list'),
