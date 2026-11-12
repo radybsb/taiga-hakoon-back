@@ -392,11 +392,18 @@ class UserStoryViewSet(AssignedUsersSignalMixin, OCCResourceMixin,
             if project.blocked_code is not None:
                 raise exc.Blocked(_("Blocked element"))
 
+            assignees = data.get('assigned_users', [])
+
+            def assigned_post_save(story, *args, **kwargs):
+                story.assigned_users.set(assignees)
+                return self.post_save(story, *args, **kwargs)
+
             user_stories = services.create_userstories_in_bulk(
                 data["bulk_stories"], project=project, owner=request.user,
                 status_id=data.get("status_id") or project.default_us_status_id,
                 swimlane_id=data.get("swimlane_id", None),
-                callback=self.post_save, precall=self.pre_save)
+                assigned_to_id=assignees[0] if assignees else None,
+                callback=assigned_post_save, precall=self.pre_save)
 
             user_stories = self.get_queryset().filter(id__in=[i.id for i in user_stories])
             for user_story in user_stories:

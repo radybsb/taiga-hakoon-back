@@ -254,10 +254,17 @@ class TaskViewSet(AssignedToSignalMixin, OCCResourceMixin, VotedResourceMixin,
         if project.blocked_code is not None:
             raise exc.Blocked(_("Blocked element"))
 
+        assignees = data.get('assigned_users', [])
+
+        def assigned_post_save(task, *args, **kwargs):
+            task.assigned_users.set(assignees)
+            return self.post_save(task, *args, **kwargs)
+
         tasks = services.create_tasks_in_bulk(
             data["bulk_tasks"], milestone_id=data["milestone_id"], user_story_id=data["us_id"],
             status_id=data.get("status_id") or project.default_task_status_id,
-            project=project, owner=request.user, callback=self.post_save, precall=self.pre_save)
+            project=project, owner=request.user, assigned_to_id=assignees[0] if assignees else None,
+            callback=assigned_post_save, precall=self.pre_save)
 
         tasks = self.get_queryset().filter(id__in=[i.id for i in tasks])
         for task in tasks:

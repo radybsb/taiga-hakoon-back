@@ -62,6 +62,17 @@ class UserStoriesBulkValidator(ProjectExistsValidator, validators.Validator):
     status_id = serializers.IntegerField(required=False)
     swimlane_id = serializers.IntegerField(required=False)
     bulk_stories = serializers.CharField()
+    assigned_users = ListField(child=serializers.IntegerField(), required=False)
+
+    def validate_assigned_users(self, attrs, source):
+        from taiga.projects.models import Membership
+        ids = list(dict.fromkeys(attrs[source]))
+        members = set(Membership.objects.filter(project_id=attrs['project_id'], user_id__in=ids, user__is_active=True).values_list('user_id', flat=True))
+        if set(ids) - members:
+            raise ValidationError(_('The user must be an active project member.'))
+        attrs[source] = ids
+        return attrs
+
 
     def validate_status_id(self, attrs, source):
         filters = {
