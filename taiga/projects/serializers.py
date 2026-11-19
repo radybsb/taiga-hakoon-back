@@ -262,6 +262,7 @@ class ProjectSerializer(serializers.LightSerializer):
     is_contact_activated = Field()
     is_epics_activated = Field()
     is_backlog_activated = Field()
+    taskboard_options = Field()
     is_kanban_activated = Field()
     is_wiki_activated = Field()
     is_issues_activated = Field()

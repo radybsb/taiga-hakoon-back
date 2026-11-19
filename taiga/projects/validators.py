@@ -291,6 +291,13 @@ class MembersBulkValidator(ProjectExistsValidator, validators.Validator):
 ######################################################
 
 class ProjectValidator(validators.ModelValidator):
+    taskboard_options = JSONField(required=False)
+
+    def validate_taskboard_options(self, attrs, source):
+        from .taskboard import validate_options
+        validate_options(attrs[source], self.object)
+        return attrs
+
     anon_permissions = PgArrayField(required=False)
     public_permissions = PgArrayField(required=False)
     tags = TagsField(default=[], required=False)

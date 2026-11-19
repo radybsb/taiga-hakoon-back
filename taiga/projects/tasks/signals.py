@@ -26,11 +26,20 @@ def cached_prev_task(sender, instance, **kwargs):
 
 def try_to_close_or_open_us_and_milestone_when_create_or_edit_task(sender, instance, created, **kwargs):
     _try_to_close_or_open_us_when_create_or_edit_task(instance)
+    from taiga.projects.taskboard import update_story_status
+    story_ids = {instance.user_story_id}
+    if instance.prev:
+        story_ids.add(instance.prev.user_story_id)
+    for story_id in sorted(pk for pk in story_ids if pk):
+        update_story_status(story_id)
     _try_to_close_or_open_milestone_when_create_or_edit_task(instance)
 
 
 def try_to_close_or_open_us_and_milestone_when_delete_task(sender, instance, **kwargs):
     _try_to_close_or_open_us_when_delete_task(instance)
+    from taiga.projects.taskboard import update_story_status
+    if instance.user_story_id:
+        update_story_status(instance.user_story_id)
     _try_to_close_milestone_when_delete_task(instance)
 
 

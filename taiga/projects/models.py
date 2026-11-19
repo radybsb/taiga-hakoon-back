@@ -197,6 +197,8 @@ class Project(ProjectDefaults, TaggedMixin, TagsColorsMixin, models.Model):
                                              verbose_name=_("active epics panel"))
     is_backlog_activated = models.BooleanField(default=True, null=False, blank=True,
                                                verbose_name=_("active backlog panel"))
+    taskboard_options = JSONField(default=dict, blank=True)
+
     is_kanban_activated = models.BooleanField(default=False, null=False, blank=True,
                                               verbose_name=_("active kanban panel"))
     is_wiki_activated = models.BooleanField(default=True, null=False, blank=True,

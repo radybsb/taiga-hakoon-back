@@ -102,3 +102,26 @@ def test_bulk_tasks_apply_assignees_and_reject_outsiders():
             f.MembershipFactory(project=project, user=invalid)
         validator = TasksBulkValidator(data=dict(data, assigned_users=[invalid.id]))
         assert not validator.is_valid()
+
+
+@pytest.mark.parametrize('name', ['UserStory', 'Task', 'Issue', 'Epic'])
+def test_assigned_filter_matches_any_assignee_and_excludes_the_whole_item(name):
+    from types import SimpleNamespace
+    from taiga.base.filters import AssignedToFilter
+    users = [f.UserFactory(), f.UserFactory()]
+    item = getattr(f, name + 'Factory')(assigned_to=users[0])
+    item.assigned_users.set(users)
+    model = type(item)
+    unassigned = getattr(f, name + 'Factory')(assigned_to=None)
+    secondary_only = getattr(f, name + 'Factory')(assigned_to=None)
+    secondary_only.assigned_users.set([users[1]])
+    queryset = model.objects.filter(pk__in=[item.pk, unassigned.pk, secondary_only.pk])
+    view = SimpleNamespace(filter_fields=(), order_by_fields=())
+    def filtered(params):
+        return set(AssignedToFilter().filter_queryset(SimpleNamespace(QUERY_PARAMS=params), queryset, view).values_list('pk', flat=True))
+    assert filtered({'assigned_to': str(users[1].pk)}) == {item.pk, secondary_only.pk}
+    assert filtered({'exclude_assigned_to': str(users[1].pk)}) == {unassigned.pk}
+    assert filtered({'assigned_to': 'null'}) == {unassigned.pk}
+    assert filtered({'exclude_assigned_to': 'null'}) == {item.pk, secondary_only.pk}
+    assert filtered({'assigned_to': str(users[0].pk), 'exclude_assigned_to': str(users[1].pk)}) == set()
+    assert filtered({'assigned_to': 'null,' + str(users[1].pk)}) == {item.pk, unassigned.pk, secondary_only.pk}

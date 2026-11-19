@@ -442,6 +442,25 @@ class AssignedToFilter(BaseRelatedFieldsFilter):
     filter_name = 'assigned_to'
     exclude_param_name = 'exclude_assigned_to'
 
+    def filter_queryset(self, request, queryset, view):
+        model = queryset.model
+        if not any(field.name == 'assigned_users' for field in model._meta.get_fields()):
+            return super().filter_queryset(request, queryset, view)
+        for mode, key in [('include', self.param_name or self.filter_name),
+                          ('exclude', self.exclude_param_name)]:
+            raw = request.QUERY_PARAMS.get(key)
+            if not raw:
+                continue
+            values = self._prepare_filter_data(raw)
+            ids = [value for value in values if value is not None]
+            related = model.objects.filter(assigned_users__in=ids).order_by().values('pk')
+            query = Q(assigned_to__in=ids) | Q(pk__in=related)
+            if None in values:
+                assigned = model.objects.filter(assigned_users__isnull=False).order_by().values('pk')
+                query |= Q(assigned_to__isnull=True) & ~Q(pk__in=assigned)
+            queryset = queryset.filter(~query if mode == 'exclude' else query)
+        return FilterBackend.filter_queryset(self, request, queryset, view)
+
 
 class StatusesFilter(BaseRelatedFieldsFilter):
     filter_name = 'status'
